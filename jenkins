@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+    stages{
+        stage ("clone") {
+            steps {
+                git branch: 'main', url: 'https://github.com/ArunMagi/sample-node-app.git'
+            }
+        }
+        stage ("build") {
+            steps {
+                sh "npm install"
+            }
+        }
+        stage ("docker image"){
+            steps {
+                sh "docker build -t techdocker24/node ."
+                sh "docker images"
+            }
+        }
+        stage("docker hub") {
+            steps {
+                sh "docker login -u techdocker24 -p Manikandan@2422"
+                sh "docker push techdocker24/node"
+            }
+        }
+        stage ("docker container"){
+            steps {
+                sh "docker rm -f node-app || true"
+                sh "docker run -d --name node-app -p 8087:8080 techdocker24/node"
+            }
+        }
+    }
+}
