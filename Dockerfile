@@ -1,16 +1,18 @@
-FROM node:6.10.3
+# Use modern, lightweight Node version
+FROM node:18-alpine
 
-# Create app directory
-RUN mkdir -p /usr/src/app
+# Set working directory
 WORKDIR /usr/src/app
 
-# Install app dependencies
-COPY package.json /usr/src/app/
-RUN npm install
+# Copy only package files first (optimizes Docker cache)
+COPY package*.json ./
+RUN npm ci --only=production
 
-# Bundle app source
-COPY . /usr/src/app
+# Copy the rest of the source code
+COPY . .
 
+# Expose the correct port
 EXPOSE 9000
-CMD [ "npm", "start" ]
-#helo
+
+# Start the app
+CMD ["npm", "start"]
