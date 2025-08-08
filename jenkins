@@ -25,7 +25,7 @@ pipeline {
             steps {
                 sh '''
                     if [ ! -f .env ]; then
-                      echo "PORT=9001" > .env
+                      echo "PORT=9000" > .env
                       echo "NODE_ENV=production" >> .env
                       echo "CUSTOM_MESSAGE=Hello from Jenkins pipeline" >> .env
                     fi
