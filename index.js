@@ -4,6 +4,6 @@ const port = 9000;
 app.get('/', (req, res) => {
     res.send('<h1>Hello World from Docker and Node.js!</h1>');
 });
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
     console.log(`Listening on port ${port}`);
 });
