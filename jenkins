@@ -19,6 +19,18 @@ pipeline {
             }
         }
 
+        stage('Ensure .env File Exists') {
+            steps {
+                sh '''
+                    if [ ! -f .env ]; then
+                      echo "PORT=9000" > .env
+                      echo "NODE_ENV=production" >> .env
+                      echo "CUSTOM_MESSAGE=Hello from Jenkins pipeline" >> .env
+                    fi
+                '''
+            }
+        }
+
         stage('Build Docker Image with Compose') {
             steps {
                 sh 'docker-compose build'
@@ -27,7 +39,7 @@ pipeline {
 
         stage('Tag Image for ECR') {
             steps {
-                sh "docker tag sample-node-app:latest ${IMAGE_URI}"  // ✅ Updated tag
+                sh "docker tag ${REPO_NAME}:latest ${IMAGE_URI}"
             }
         }
 
@@ -72,6 +84,9 @@ pipeline {
         }
         failure {
             echo "❌ Pipeline failed!"
+        }
+        always {
+            sh 'docker image prune -f'
         }
     }
 }
