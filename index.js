@@ -1,9 +1,15 @@
 const express = require('express');
+require('dotenv').config(); // 👈 Load env variables
+
 const app = express();
-const port = 9000;
+const port = process.env.PORT || 9000;
+const message = process.env.CUSTOM_MESSAGE || 'Hello World!';
+
 app.get('/', (req, res) => {
-    res.send('<h1>Hello World from Docker and Node.js!</h1>');
+    res.send(`<h1>${message}</h1>`);
 });
+
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Listening on port ${port}`);
+    console.log(`🚀 Server running on port ${port}`);
 });
+
