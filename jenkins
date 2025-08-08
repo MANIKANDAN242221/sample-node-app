@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'agent' }
+    agent none  // 👈 All stages define their own agent
 
     environment {
         AWS_ACCOUNT_ID = '951042686423'
@@ -14,12 +14,14 @@ pipeline {
 
     stages {
         stage('Clone Repository') {
+            agent { label 'master' }
             steps {
                 git url: "${GIT_REPO}", branch: 'main'
             }
         }
 
         stage('Ensure .env File Exists') {
+            agent { label 'master' }
             steps {
                 sh '''
                     if [ ! -f .env ]; then
@@ -32,18 +34,21 @@ pipeline {
         }
 
         stage('Build Docker Image with Compose') {
+            agent { label 'master' }
             steps {
                 sh 'docker-compose build'
             }
         }
 
         stage('Tag Image for ECR') {
+            agent { label 'master' }
             steps {
                 sh "docker tag ${REPO_NAME}:latest ${IMAGE_URI}"
             }
         }
 
         stage('Login to ECR') {
+            agent { label 'master' }
             steps {
                 withCredentials([
                     usernamePassword(
@@ -63,12 +68,14 @@ pipeline {
         }
 
         stage('Push to ECR') {
+            agent { label 'master' }
             steps {
                 sh "docker push ${IMAGE_URI}"
             }
         }
 
         stage('Deploy Container') {
+            agent { label 'agent' }  // 👈 Run container on agent
             steps {
                 sh '''
                     docker-compose down || true
@@ -79,14 +86,17 @@ pipeline {
     }
 
     post {
+        always {
+            agent { label 'master' }  // Cleanup on master
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
         success {
-            echo "✅ Pipeline completed successfully using Docker Compose!"
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
             echo "❌ Pipeline failed!"
-        }
-        always {
-            sh 'docker image prune -f'
         }
     }
 }
