@@ -1,33 +1,71 @@
 pipeline {
-    agent any
-    stages{
-        stage ("clone") {
+    agent { label 'agent' }
+
+    environment {
+        AWS_ACCOUNT_ID = '951042686423'
+        AWS_REGION = 'ap-south-1'
+        REPO_NAME = 'sample-node-app'
+        IMAGE_TAG = 'latest'
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE_URI = "${ECR_REGISTRY}/${REPO_NAME}:${IMAGE_TAG}"
+        GIT_REPO = 'https://github.com/MANIKANDAN242221/sample-node-app.git'
+        AWS_CREDENTIALS_ID = 'aws-jenkins-creds' // AWS Access Key + Secret
+    }
+
+    stages {
+        stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/MANIKANDAN242221/sample-node-app.git'
+                git url: "${GIT_REPO}", branch: 'main'
             }
         }
-        stage ("build") {
+
+        stage('Build Docker Image') {
             steps {
-                sh "npm install"
+                sh "docker build -t ${IMAGE_URI} ."
             }
         }
-        stage ("docker image"){
+
+        stage('ECR Login') {
             steps {
-                sh "docker build -t techdocker24/node ."
-                sh "docker images"
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${AWS_CREDENTIALS_ID}",
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                    )
+                ]) {
+                    sh """
+                        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                    """
+                }
             }
         }
-        stage("docker hub") {
+
+        stage('Push to ECR') {
             steps {
-                sh "docker login -u techdocker24 -p Manikandan@2422"
-                sh "docker push techdocker24/node"
+                sh "docker push ${IMAGE_URI}"
             }
         }
-        stage ("docker container"){
+
+        stage('Deploy Container') {
             steps {
-                sh "docker rm -f node-app || true"
-                sh "docker run -d --name node-app -p 8087:8080 techdocker24/node"
+                sh """
+                    docker stop ${REPO_NAME} || true
+                    docker rm ${REPO_NAME} || true
+                    docker run -d --name ${REPO_NAME} -p 9000:9000 ${IMAGE_URI}
+                """
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed!"
         }
     }
 }
