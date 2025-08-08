@@ -9,7 +9,7 @@ pipeline {
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_URI = "${ECR_REGISTRY}/${REPO_NAME}:${IMAGE_TAG}"
         GIT_REPO = 'https://github.com/MANIKANDAN242221/sample-node-app.git'
-        AWS_CREDENTIALS_ID = 'aws-jenkins-creds' // AWS Access Key + Secret
+        AWS_CREDENTIALS_ID = 'aws-jenkins-creds'
     }
 
     stages {
@@ -19,13 +19,19 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Image with Compose') {
             steps {
-                sh "docker build -t ${IMAGE_URI} ."
+                sh 'docker-compose build'
             }
         }
 
-        stage('ECR Login') {
+        stage('Tag Image for ECR') {
+            steps {
+                sh "docker tag sample-node-app:latest ${IMAGE_URI}"  // ✅ Updated tag
+            }
+        }
+
+        stage('Login to ECR') {
             steps {
                 withCredentials([
                     usernamePassword(
@@ -34,11 +40,12 @@ pipeline {
                         passwordVariable: 'AWS_SECRET_ACCESS_KEY'
                     )
                 ]) {
-                    sh """
+                    sh '''
                         aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
                         aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                        aws configure set default.region ${AWS_REGION}
                         aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                    """
+                    '''
                 }
             }
         }
@@ -51,18 +58,17 @@ pipeline {
 
         stage('Deploy Container') {
             steps {
-                sh """
-                    docker stop ${REPO_NAME} || true
-                    docker rm ${REPO_NAME} || true
-                    docker run -d --name ${REPO_NAME} -p 9000:9000 ${IMAGE_URI}
-                """
+                sh '''
+                    docker-compose down || true
+                    docker-compose up -d
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo "✅ Pipeline completed successfully using Docker Compose!"
         }
         failure {
             echo "❌ Pipeline failed!"
