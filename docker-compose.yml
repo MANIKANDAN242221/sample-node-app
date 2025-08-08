@@ -5,9 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sample-node-app:latest   # ✅ Add this line
+    image: sample-node-app:latest
     container_name: sample-node-app
     ports:
       - "9000:9000"
+    env_file:
+      - .env   # 👈 This line loads your environment variables
     restart: unless-stopped
+
 
