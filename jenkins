@@ -27,7 +27,7 @@ pipeline {
                     if [ ! -f .env ]; then
                       echo "PORT=9000" > .env
                       echo "NODE_ENV=production" >> .env
-                      echo "CUSTOM_MESSAGE=Hello from Jenkins pipeline" >> .env
+                      echo "CUSTOM_MESSAGE=Hello from Jenkins pipeline path" >> .env
                     fi
                 '''
             }
