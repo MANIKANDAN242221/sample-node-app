@@ -10,7 +10,5 @@ services:
     ports:
       - "9000:9000"
     env_file:
-      - .env   # 👈 This line loads your environment variables
+      - .env   
     restart: unless-stopped
-
-
