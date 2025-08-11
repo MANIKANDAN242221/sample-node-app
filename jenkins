@@ -1,14 +1,14 @@
 pipeline {
-    agent none  // 👈 All stages define their own agent
+    agent none
 
     environment {
-        AWS_ACCOUNT_ID = '951042686423'
-        AWS_REGION = 'ap-south-1'
-        REPO_NAME = 'sample-node-app'
-        IMAGE_TAG = 'latest'
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        IMAGE_URI = "${ECR_REGISTRY}/${REPO_NAME}:${IMAGE_TAG}"
-        GIT_REPO = 'https://github.com/MANIKANDAN242221/sample-node-app.git'
+        AWS_ACCOUNT_ID     = '951042686423'
+        AWS_REGION         = 'ap-south-1'
+        REPO_NAME          = 'sample-node-app'
+        IMAGE_TAG          = 'latest'
+        ECR_REGISTRY       = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE_URI          = "${ECR_REGISTRY}/${REPO_NAME}:${IMAGE_TAG}"
+        GIT_REPO           = 'https://github.com/MANIKANDAN242221/sample-node-app.git'
         AWS_CREDENTIALS_ID = 'aws-jenkins-creds'
     }
 
@@ -20,23 +20,40 @@ pipeline {
             }
         }
 
-        stage('Ensure .env File Exists') {
+        stage('Ensure .env File') {
             agent { label 'master' }
             steps {
                 sh '''
-                    if [ ! -f .env ]; then
-                      echo "PORT=9000" > .env
-                      echo "NODE_ENV=production" >> .env
-                      echo "CUSTOM_MESSAGE=Hello from Jenkins pipeline path" >> .env
-                    fi
+                    echo "PORT=9000" > .env
+                    echo "NODE_ENV=production" >> .env
+                    echo "CUSTOM_MESSAGE=Hello from Jenkins pipeline" >> .env
                 '''
             }
         }
 
-        stage('Build Docker Image with Compose') {
+        stage('Install Dependencies & Build UI') {
             agent { label 'master' }
             steps {
-                sh 'docker-compose build'
+                sh '''
+                    echo "📦 Installing Node.js dependencies..."
+                    npm install
+
+                    echo "🏗️ Building frontend..."
+                    npm run build
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            agent { label 'master' }
+            steps {
+                sh '''
+                    echo "🗑️ Removing old Docker image..."
+                    docker rmi -f ${REPO_NAME}:latest || true
+
+                    echo "🐳 Building new Docker image..."
+                    docker-compose build --no-cache
+                '''
             }
         }
 
@@ -61,21 +78,22 @@ pipeline {
                         aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
                         aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
                         aws configure set default.region ${AWS_REGION}
-                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                        aws ecr get-login-password --region ${AWS_REGION} \
+                        | docker login --username AWS --password-stdin ${ECR_REGISTRY}
                     '''
                 }
             }
         }
 
-        stage('Push to ECR') {
+        stage('Push Image to ECR') {
             agent { label 'master' }
             steps {
                 sh "docker push ${IMAGE_URI}"
             }
         }
 
-        stage('Deploy Container') {
-            agent { label 'agent' }  // 👈 Run container on agent
+        stage('Deploy Container on Agent') {
+            agent { label 'agent' }
             steps {
                 sh '''
                     docker-compose down || true
@@ -87,16 +105,13 @@ pipeline {
 
     post {
         always {
-            agent { label 'master' }  // Cleanup on master
-            steps {
-                sh 'docker image prune -f'
-            }
+            echo '🧹 Cleaning up...'
         }
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo '✅ Pipeline executed successfully!'
         }
         failure {
-            echo "❌ Pipeline failed!"
+            echo '❌ Pipeline failed!'
         }
     }
 }
