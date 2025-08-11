@@ -2,19 +2,17 @@ FROM node:18-alpine
 
 WORKDIR /usr/src/app
 
-# Install dependencies
+# Copy package.json and package-lock.json first for caching
 COPY package*.json ./
-RUN npm install --omit=dev
 
-# Copy all source code
+# Install dependencies (including dev if you need nodemon in container)
+RUN npm install
+
+# Copy application source code
 COPY . .
 
-# Build frontend (React/Vue/etc.)
-RUN npm run build
-
-# Serve built frontend via Express (public folder)
-# Make sure index.js has: app.use(express.static('public'));
-RUN mkdir -p public && cp -r build/* public/
-
+# Expose the application port
 EXPOSE 9000
+
+# Start the app
 CMD ["npm", "start"]
